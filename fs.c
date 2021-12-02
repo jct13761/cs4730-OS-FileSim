@@ -464,7 +464,6 @@ int hard_link(char *src, char *dest) {
 		return -1;
 	} // if 
 
-	int i;
 	int srcSize = inode[srcInodeNum].size; // the size of the src file
 	int srcNumBlock = inode[srcInodeNum].blockCount; // the number of blocks of the src file
 	// if the the size does not fit in one block, increase the block count. 
@@ -475,34 +474,12 @@ int hard_link(char *src, char *dest) {
 	if (srcNumBlock > superBlock.freeBlockCount) {
 		printf("File create failed: data block is full!\n");
 		return -1;
-	}
+	} // if 
 
 	if (superBlock.freeInodeCount < 1) {
 		printf("File create failed: inode is full!\n");
 		return -1;
-	}
-
-	// char *tmp = (char *)malloc(sizeof(int) * srcSize + 1);
-
-	// rand_string(tmp, size);
-	// printf("New File: %s\n", tmp);
-
-	// // get inode and fill it
-	// destInodeNum = get_free_inode();
-	// if (destInodeNum < 0) {
-	// 	printf("File_create error: not enough inode.\n");
-	// 	return -1;
-	// }
-
-	// // set the i-node of the destination file 
-	// inode[destInodeNum].type = file;
-	// inode[destInodeNum].owner = 1; // pre-defined
-	// inode[destInodeNum].group = 2; // pre-defined
-	// gettimeofday(&(inode[destInodeNum].created), NULL);
-	// gettimeofday(&(inode[destInodeNum].lastAccess), NULL);
-	// inode[destInodeNum].size = srcSize;
-	// inode[destInodeNum].blockCount = srcNumBlock;
-	// inode[destInodeNum].link_count = 1;
+	} //if 
 
 	// update the last access time of the inode that now refers to both dest and src files 
 	gettimeofday(&(inode[srcInodeNum].lastAccess), NULL);
@@ -516,12 +493,6 @@ int hard_link(char *src, char *dest) {
 	curDir.dentry[curDir.numEntry].inode = srcInodeNum;
 	printf("curdir %s, name %s\n", curDir.dentry[curDir.numEntry].name, dest);
 	curDir.numEntry++;
-
-	// // make the dest file have the same blocks in memory as the src file 
-	// for (i = 0; i < srcNumBlock; i++) {		
-	// 	inode[destInodeNum].directBlock[i] = inode[srcInodeNum].directBlock[i];
-	// 	// printf("srcBlocks = %d, destBlocks = %d\n", inode[destInodeNum].directBlock[i], inode[srcInodeNum].directBlock[i]);
-	// } // for
 
 	//update last access of current directory
 	gettimeofday(&(inode[curDir.dentry[0].inode].lastAccess), NULL);
