@@ -112,8 +112,30 @@ int search_cur_dir(char *name)
 	return -1;
 }
 
-int file_create(char *name, int size)
-{
+void remove_from_dir(char *name) {
+	int i;
+
+	// find the directory that will be removed 
+	for (i = 0; i < curDir.numEntry; i++) {
+		if (command(name, curDir.dentry[i].name)) {
+			break;
+		} // if
+	} // for
+
+	// startign at the index of the file to be deleted, copy the items at the index over 
+	for (int j = i+1; j < curDir.numEntry; j++) {
+		// strncpy(curDir.dentry[i].name, curDir.dentry[j].name, strlen(curDir.dentry[j].name));
+		// curDir.dentry[j].name = curDir.dentry[i].name;
+		curDir.dentry[i] = curDir.dentry[j];
+		i++;
+	} // for
+
+	// decrement the number of directory entries.
+	curDir.numEntry--;
+}
+
+// Create a file 
+int file_create(char *name, int size) {
 	int i;
 
 	if (size > SMALL_FILE)
@@ -344,7 +366,7 @@ int file_stat(char *name)
 	int inodeNum = search_cur_dir(name);
 	if (inodeNum < 0)
 	{
-		printf("file cat error: file is not exist.\n");
+		printf("file cat error: file does not exist.\n");
 		return -1;
 	}
 
@@ -369,15 +391,156 @@ int file_stat(char *name)
 * This function will remove the file by name.
 **************************************************************************************************/
 int file_remove(char *name) {
-	printf("Error: rm is not implemented.\n");
-	return 0;
+	/* 
+	 * PSUEDOCODE STEPS:
+	 * 1) Check that file exists
+	 * 2) Check if link count == 1
+	 * 		2.a) just delete the file 
+	 * 3) if link_count > 1
+	 * 		3.a) just remove the fine from the directory
+	 * 		3.b) reduce the link count of the i-node
+	*/
+
+	// get the i-node number of the file 
+	int inodeNum = search_cur_dir(name);
+	// if the i node is valie (the file exists)
+	if (inodeNum < 0) {
+		printf("File removal failed: %s does not exist.\n", name);
+		return -1;
+	} // if 
+
+	// if the file is a directory 
+	if (inode[inodeNum].type == directory) {
+		printf("File removal failed: %s is a directory.\n", name);
+		return -1;
+	} // if 
+
+	// if the file has no links
+	// else if the file has one or more links 
+	if (inode[inodeNum].link_count == 1) {
+		// File has no links
+
+		// remove from directory
+		remove_from_dir(name); 
+
+		// clear up inode bitmap
+		set_free_inode(inodeNum); 
+
+		// clear up data block bitmap
+		for (int i = 0; i < inode[inodeNum].blockCount; i++) {
+			set_free_block(inode[inodeNum].directBlock[i]); // need to loop this probably
+		}
+
+		printf("%s has been successfully removed\n", name); 
+
+		return 0;
+	} else if (inode[inodeNum].link_count > 1) {
+		// File has at least one link 
+
+		// remove from directory
+		remove_from_dir(name); 
+
+		// decrease the link count
+		inode[inodeNum].link_count--;
+
+		printf("%s has been successfully removed\n", name); 
+		return 0;
+	} // if-else 
+
+	// will only happen if something went wrong
+	printf("Error! %s has not been removed\n", name); 
+	return -1;
 }
 
 /**************************************************************************************************
 * BONUS POINTS 
+* Create a directory 
 **************************************************************************************************/
 int dir_make(char *name) {
-	printf("Error: mkdir is not implemented.\n");
+	// printf("Error: mkdir is not implemented.\n");
+
+	// check if the name is already in the directory
+	int inodeNum = search_cur_dir(name);
+	if (inodeNum >= 0) {
+		printf("Dir make failed:  %s exist.\n", name);
+		return -1;
+	} // if 
+
+	// check if there is space in the directory
+	if (curDir.numEntry + 1 > MAX_DIR_ENTRY) {
+		printf("Dir make failed: directory is full!\n");
+		return -1;
+	} // if 
+
+	// check if the inode count is full
+	if (superBlock.freeInodeCount < 1) {
+		printf("Dir make failed: inode is full!\n");
+		return -1;
+	} // if 
+
+	// check if the block count is full 
+	int numBlock = 1;
+	if (numBlock > superBlock.freeBlockCount) {
+		printf("Dir make failed: data block is full!\n");
+		return -1;
+	} // if
+
+	// get a free inode
+	int dirInode = get_free_inode();
+	if (dirInode < 0) {
+		printf("Dir make error: not enough inode.\n");
+		return -1;
+	} // if 
+
+	// Init root dir
+	int dirBlock = get_free_block();
+	if (dirBlock < 0) {
+		printf("Dir make error: not enough free blocks.\n");
+		return -1;
+	} // if
+
+	// Set the inode info for the new directory
+	inode[dirInode].type = directory;
+	inode[dirInode].owner = 1;
+	inode[dirInode].group = 2;
+	gettimeofday(&(inode[dirInode].created), NULL);
+	gettimeofday(&(inode[dirInode].lastAccess), NULL);
+	inode[dirInode].size = 1;
+	inode[dirInode].blockCount = 1;
+	inode[dirInode].directBlock[0] = dirBlock;
+
+	// add a new directory into the current directory entry
+	strncpy(curDir.dentry[curDir.numEntry].name, name, strlen(name));
+	curDir.dentry[curDir.numEntry].name[strlen(name)] = '\0';
+	curDir.dentry[curDir.numEntry].inode = dirInode;
+	// printf("curdir %s, name %s\n", curDir.dentry[curDir.numEntry].name, name);
+	curDir.numEntry++;
+
+	// create a new direcotry entry 
+	Dentry newDir;
+
+	// create the current dir "." entry and write it to the new block
+	newDir.numEntry = 2;
+	strncpy(newDir.dentry[0].name, ".", 1);
+	newDir.dentry[0].name[1] = '\0';
+	newDir.dentry[0].inode = dirInode;
+	// disk_write(dirBlock, (char *)&newDir);
+
+	// create the parent dir ".." entry and write it to the new block
+	strncpy(newDir.dentry[1].name, "..", 2);
+	newDir.dentry[1].name[3] = '\0';
+	newDir.dentry[1].inode = curDir.dentry[0].inode;
+	// disk_write(dirBlock, (char *)&curDir);
+	disk_write(dirBlock, (char *)&newDir);
+
+
+	printf("wrote from block %d\n", curDirBlock); // TEST
+	printf("wrote to block %d\n", dirBlock); // TEST
+
+	// curDir = newDir;
+	
+	printf("dir %s created successfully\n", name);
+
 	return 0;
 }
 
@@ -393,7 +556,30 @@ int dir_remove(char *name) {
 * BONUS POINTS 
 **************************************************************************************************/
 int dir_change(char *name) {
-	printf("Error: cd is not implemented.\n");
+	// printf("Error: cd is not implemented.\n");
+
+	// check if the name is already in the directory
+	int inodeNum = search_cur_dir(name);
+	if (inodeNum < 0) {
+		printf("cd failed:  %s does not exist.\n", name);
+		return -1;
+	} // if 
+
+	// check if the type is a file 
+	if (inode[inodeNum].type == file) {
+		printf("cd error: cannot change into a file\n");
+		return -1;
+	} // if
+
+	// root directory
+	curDirBlock = inode[inodeNum].directBlock[0];
+	disk_read(curDirBlock, (char *)&curDir);
+
+
+	printf("current Directory entries: %d\n", curDir.numEntry);  // TEST
+	// printf("current Directory: %s\n", name); 
+
+
 	return 0;
 }
 
@@ -410,6 +596,24 @@ int ls()
 		printf("name \"%s\", inode %d, size %d byte\n", curDir.dentry[i].name, curDir.dentry[i].inode, inode[n].size);
 	}
 
+	// char *tmp = (char *)malloc(10);
+	// tmp[10] = '\0';
+
+	// for (int i = 0; i < MAX_INODE / 8; i++) {
+	// 	tmp[i] = get_bit(inode, i);
+	// }
+
+	// printf("inode bitmap = %d\n", tmp);
+	// char *tmp2 = (char *)malloc(10);
+	// tmp2[10] = '\0';
+
+	// for (int i = 0; i < MAX_INODE / 8; i++) {
+	// 	tmp2[i] = get_bit(blockMap, i);
+	// }
+
+	// printf("block bitmap = %d\n", tmp2);
+
+
 	return 0;
 }
 
@@ -424,8 +628,6 @@ int fs_stat()
 * This function will make a hard link of another file.
 **************************************************************************************************/
 int hard_link(char *src, char *dest) {
-	printf("Error: ln is not implemented.\n");
-
 	/* 
 	 * PSUEDOCODE STEPS: 
 	 * 1) Check if src exists and is not directory 
@@ -435,18 +637,17 @@ int hard_link(char *src, char *dest) {
 	 * 5) increase link counter 
 	*/ 
 
-
 	// get the i-node number of the src file 
 	int srcInodeNum = search_cur_dir(src);
 	// if the i node is valid (the file exists)
 	if (srcInodeNum < 0) {
-		printf("File read failed: %s does not exist.\n", src);
+		printf("Hard Link failed: %s does not exist.\n", src);
 		return -1;
 	} // if 
 
 	// if the src file is a directory 
 	if (inode[srcInodeNum].type == directory) {
-		printf("File read failed: %s is a directory.\n", src);
+		printf("Hard Link failed: %s is a directory.\n", src);
 		return -1;
 	} // if 
 
@@ -454,13 +655,13 @@ int hard_link(char *src, char *dest) {
 	int destInodeNum = search_cur_dir(dest);
 	// if the desst file is valied (it exists)
 	if (destInodeNum >= 0) {
-		printf("File create failed:  %s exist.\n", dest);
+		printf("Hard Link failed:  %s exist.\n", dest);
 		return -1;
 	} // if
 
 	// if the directory is full, do not add the new file 
 	if (curDir.numEntry + 1 > MAX_DIR_ENTRY) {
-		printf("File create failed: directory is full!\n");
+		printf("Hard Link failed: directory is full!\n");
 		return -1;
 	} // if 
 
@@ -472,12 +673,12 @@ int hard_link(char *src, char *dest) {
 
 	// if the number of blokcs of the src 
 	if (srcNumBlock > superBlock.freeBlockCount) {
-		printf("File create failed: data block is full!\n");
+		printf("Hard Link failed: data block is full!\n");
 		return -1;
 	} // if 
 
 	if (superBlock.freeInodeCount < 1) {
-		printf("File create failed: inode is full!\n");
+		printf("Hard Link failed: inode is full!\n");
 		return -1;
 	} //if 
 
@@ -491,13 +692,13 @@ int hard_link(char *src, char *dest) {
 	strncpy(curDir.dentry[curDir.numEntry].name, dest, strlen(dest));
 	curDir.dentry[curDir.numEntry].name[strlen(dest)] = '\0';
 	curDir.dentry[curDir.numEntry].inode = srcInodeNum;
-	printf("curdir %s, name %s\n", curDir.dentry[curDir.numEntry].name, dest);
+	// printf("curdir %s, name %s\n", curDir.dentry[curDir.numEntry].name, dest);
 	curDir.numEntry++;
 
 	//update last access of current directory
 	gettimeofday(&(inode[curDir.dentry[0].inode].lastAccess), NULL);
 
-	// printf("file created: %s, inode %d, size %d\n", name, inodeNum, size);
+	printf("link created: %s --> %d\n", dest, src);
 
 	return 0;
 }

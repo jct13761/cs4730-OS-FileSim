@@ -52,8 +52,8 @@ int get_free_inode()
 int get_free_block()
 {
 	int i = 0;
-	for(i = 0; i < MAX_BLOCK; i++)
-	{
+
+	for(i = 0; i < MAX_BLOCK; i++) {
 		if(get_bit(blockMap, i) == 0) {
 			set_bit(blockMap, i, 1);
 			superBlock.freeBlockCount--;
@@ -63,6 +63,17 @@ int get_free_block()
 
 		return -1;
 }
+
+
+void set_free_inode(int i) {
+	set_bit(inodeMap, i, 0);
+	superBlock.freeInodeCount++;
+} // set_free_inode()
+
+void set_free_block(int i) {
+	set_bit(blockMap, i, 0);
+	superBlock.freeBlockCount--;
+} // set_free_block()
 
 int format_timeval(struct timeval *tv, char *buf, size_t sz)
 {
