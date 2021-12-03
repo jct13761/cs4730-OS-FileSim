@@ -556,8 +556,6 @@ int dir_remove(char *name) {
 * BONUS POINTS 
 **************************************************************************************************/
 int dir_change(char *name) {
-	// printf("Error: cd is not implemented.\n");
-
 	// check if the name is already in the directory
 	int inodeNum = search_cur_dir(name);
 	if (inodeNum < 0) {
@@ -571,14 +569,17 @@ int dir_change(char *name) {
 		return -1;
 	} // if
 
+	// write current Directory changes to block before switching 
+	disk_write(curDirBlock, (char *)&curDir);
+
+
 	// root directory
 	curDirBlock = inode[inodeNum].directBlock[0];
 	disk_read(curDirBlock, (char *)&curDir);
 
-
 	printf("current Directory entries: %d\n", curDir.numEntry);  // TEST
+	printf("current Directory name: %s\n", name);  // TEST
 	// printf("current Directory: %s\n", name); 
-
 
 	return 0;
 }
