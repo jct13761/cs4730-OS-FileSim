@@ -12,8 +12,7 @@ SuperBlock superBlock;
 Dentry curDir;
 int curDirBlock;
 
-int fs_mount(char *name)
-{
+int fs_mount(char *name) {
 	int numInodeBlock = (sizeof(Inode) * MAX_INODE) / BLOCK_SIZE;
 	int i, index, inode_index = 0;
 
@@ -78,10 +77,9 @@ int fs_mount(char *name)
 		disk_write(curDirBlock, (char *)&curDir);
 	}
 	return 0;
-}
+} // fs_mount()
 
-int fs_umount(char *name)
-{
+int fs_umount(char *name) {
 	int numInodeBlock = (sizeof(Inode) * MAX_INODE) / BLOCK_SIZE;
 	int i, index, inode_index = 0;
 	disk_write(0, (char *)&superBlock);
@@ -97,10 +95,9 @@ int fs_umount(char *name)
 	disk_write(curDirBlock, (char *)&curDir);
 
 	disk_umount(name);
-}
+} // fs_umount()
 
-int search_cur_dir(char *name)
-{
+int search_cur_dir(char *name) {
 	// return inode. If not exist, return -1
 	int i;
 
@@ -110,7 +107,7 @@ int search_cur_dir(char *name)
 			return curDir.dentry[i].inode;
 	}
 	return -1;
-}
+} // search_cur_dir()
 
 void remove_from_dir(char *name) {
 	int i;
@@ -132,7 +129,7 @@ void remove_from_dir(char *name) {
 
 	// decrement the number of directory entries.
 	curDir.numEntry--;
-}
+} // remove_from_dir()
 
 // Create a file 
 int file_create(char *name, int size) {
@@ -230,10 +227,9 @@ int file_create(char *name, int size) {
 
 	free(tmp);
 	return 0;
-}
+} // file_create()
 
-int file_cat(char *name)
-{
+int file_cat(char *name) {
 	int inodeNum, i, size;
 	char str_buffer[512];
 	char *str;
@@ -243,13 +239,11 @@ int file_cat(char *name)
 	size = inode[inodeNum].size;
 
 	//check if valid input
-	if (inodeNum < 0)
-	{
+	if (inodeNum < 0) {
 		printf("cat error: file not found\n");
 		return -1;
 	}
-	if (inode[inodeNum].type == directory)
-	{
+	if (inode[inodeNum].type == directory) {
 		printf("cat error: cannot read directory\n");
 		return -1;
 	}
@@ -258,20 +252,16 @@ int file_cat(char *name)
 	str = (char *)malloc(sizeof(char) * (size + 1));
 	str[size] = '\0';
 
-	for (i = 0; i < inode[inodeNum].blockCount; i++)
-	{
+	for (i = 0; i < inode[inodeNum].blockCount; i++) {
 		int block;
 		block = inode[inodeNum].directBlock[i];
 
 		disk_read(block, str_buffer);
 
-		if (size >= BLOCK_SIZE)
-		{
+		if (size >= BLOCK_SIZE) {
 			memcpy(str + i * BLOCK_SIZE, str_buffer, BLOCK_SIZE);
 			size -= BLOCK_SIZE;
-		}
-		else
-		{
+		} else {
 			memcpy(str + i * BLOCK_SIZE, str_buffer, size);
 		}
 	}
@@ -284,7 +274,7 @@ int file_cat(char *name)
 
 	//return success
 	return 0;
-}
+} // file_cat()
 
 /**************************************************************************************************
 * This function will read the specified file name's content starting at the offset and reading 
@@ -292,17 +282,17 @@ int file_cat(char *name)
 **************************************************************************************************/
 int file_read(char *name, int offset, int size) {
 
-	// function variables 
-	int i;
-	char str_buffer[512];
-	char *str;
-
 	/*
 	* PSEUDOCODE STEPS:
 	* 1) Read i-node
 	* 2) Read data
 	* 3) Write i-node (time of access)
 	*/
+
+	// function variables 
+	int i;
+	char str_buffer[512];
+	char *str;
 
 	// get the i-node number of the file 
 	int inodeNum = search_cur_dir(name);
@@ -360,15 +350,13 @@ int file_read(char *name, int offset, int size) {
 	
 } // file_read
 
-int file_stat(char *name)
-{
+int file_stat(char *name) {
 	char timebuf[28];
 	int inodeNum = search_cur_dir(name);
-	if (inodeNum < 0)
-	{
+	if (inodeNum < 0) {
 		printf("file cat error: file does not exist.\n");
 		return -1;
-	}
+	} // if
 
 	printf("Inode\t\t= %d\n", inodeNum);
 	if (inode[inodeNum].type == file)
@@ -384,7 +372,7 @@ int file_stat(char *name)
 	printf("Created time\t= %s\n", timebuf);
 	format_timeval(&(inode[inodeNum].lastAccess), timebuf, 28);
 	printf("Last acc. time\t= %s\n", timebuf);
-}
+} // file_stat()
 
 /**************************************************************************************************
 * NEED TO IMPLEMENT!!
@@ -457,45 +445,44 @@ int file_remove(char *name) {
 * Create a directory 
 **************************************************************************************************/
 int dir_make(char *name) {
-	// printf("Error: mkdir is not implemented.\n");
 
 	// check if the name is already in the directory
 	int inodeNum = search_cur_dir(name);
 	if (inodeNum >= 0) {
-		printf("Dir make failed:  %s exist.\n", name);
+		printf("Directory make failed: \'/%s\' exist.\n", name);
 		return -1;
 	} // if 
 
 	// check if there is space in the directory
 	if (curDir.numEntry + 1 > MAX_DIR_ENTRY) {
-		printf("Dir make failed: directory is full!\n");
+		printf("Directory make failed: directory is full!\n");
 		return -1;
 	} // if 
 
 	// check if the inode count is full
 	if (superBlock.freeInodeCount < 1) {
-		printf("Dir make failed: inode is full!\n");
+		printf("Directory make failed: inode is full!\n");
 		return -1;
 	} // if 
 
 	// check if the block count is full 
 	int numBlock = 1;
 	if (numBlock > superBlock.freeBlockCount) {
-		printf("Dir make failed: data block is full!\n");
+		printf("Directory make failed: data block is full!\n");
 		return -1;
 	} // if
 
 	// get a free inode
 	int dirInode = get_free_inode();
 	if (dirInode < 0) {
-		printf("Dir make error: not enough inode.\n");
+		printf("Directory make error: not enough inode.\n");
 		return -1;
 	} // if 
 
 	// Init root dir
 	int dirBlock = get_free_block();
 	if (dirBlock < 0) {
-		printf("Dir make error: not enough free blocks.\n");
+		printf("Directory make error: not enough free blocks.\n");
 		return -1;
 	} // if
 
@@ -516,73 +503,127 @@ int dir_make(char *name) {
 	// printf("curdir %s, name %s\n", curDir.dentry[curDir.numEntry].name, name);
 	curDir.numEntry++;
 
-	// create a new direcotry entry 
-	Dentry newDir;
+	Dentry newDir;	// create a new direcotry entry 
 
-	// create the current dir "." entry and write it to the new block
+	// create the current dir "." entry and store the relevant info
 	newDir.numEntry = 2;
 	strncpy(newDir.dentry[0].name, ".", 1);
 	newDir.dentry[0].name[1] = '\0';
 	newDir.dentry[0].inode = dirInode;
 	// disk_write(dirBlock, (char *)&newDir);
 
-	// create the parent dir ".." entry and write it to the new block
+	// create the parent dir ".." entry and store the relevant info
 	strncpy(newDir.dentry[1].name, "..", 2);
 	newDir.dentry[1].name[3] = '\0';
 	newDir.dentry[1].inode = curDir.dentry[0].inode;
 	// disk_write(dirBlock, (char *)&curDir);
+
+	// write the new Direcotry entry struct it to the new block
 	disk_write(dirBlock, (char *)&newDir);
 
-
-	printf("wrote from block %d\n", curDirBlock); // TEST
-	printf("wrote to block %d\n", dirBlock); // TEST
-
-	// curDir = newDir;
-	
-	printf("dir %s created successfully\n", name);
+	// Print a message to the user that the creation was a success 	
+	printf("Directory \'/%s\' created successfully\n", name);
 
 	return 0;
-}
+} // dir_make()
 
 /**************************************************************************************************
 * BONUS POINTS 
+* Remove a directory 
 **************************************************************************************************/
 int dir_remove(char *name) {
-	printf("Error: rmdir is not implemented.\n");
+
+	/* 
+	 * PSUEDOCODE STEPS:
+	 * 1) Check that dircetory exists and is not a file 
+	 * 2) if there are directories inside dir, make recursive call to dir_remove()
+	 * 		2.a) remove from the current directory list
+	 * 		2.b) Free i-node entry
+	 * 		2.c) Free data blocks
+	 * 3) If there are Files in the directory, remove them all
+	 * 
+	*/
+
+	// check if the name is already in the directory
+	int inodeNum = search_cur_dir(name);
+	if (inodeNum < 0) {
+		printf("Directory remove failed: \'/%s\' does not exist.\n", name);
+		return -1;
+	} // if 
+
+	// if the dir is a file 
+	if (inode[inodeNum].type == file) {
+		printf("Directory removal failed: \'/%s\' is a file.\n", name);
+		return -1;
+	} // if 
+
+	Dentry dirToBeDeleted; // the reference for the file structure to be deleted 
+
+	// get the block number of the directory to switch to 
+	int dirBlocktoBeDeleted = inode[inodeNum].directBlock[0];
+	// load the dest dir's entry table into memory
+	disk_read(dirBlocktoBeDeleted, (char *)&dirToBeDeleted);
+
+	printf("dir To be deleted count = %d\n", dirToBeDeleted.numEntry); // TEST
+
+	// if trying to delete the current directory 
+	if (dirToBeDeleted.dentry[0].inode == curDir.dentry[0].inode) {
+		printf("Directory removal failed: \'/%s\' is the current Directory.\n", name);
+		return -1;
+	} // if 
+
+	// if trying to delete a parent directory
+	if (dirToBeDeleted.dentry[0].inode == curDir.dentry[1].inode) { 
+		printf("Directory removal failed: \'/%s\' is the current Directory's parent.\n", name);
+		return -1;
+	} // if
+
+	if (dirToBeDeleted.numEntry == 2) {
+		printf("Directory is empty!\n"); // TEST
+	} else if (dirToBeDeleted.numEntry > 2) {
+		printf("Failed to remove \'/%s\': Directory not empty!\n", name); // TEST
+	} else {
+		
+	} // if-else
+
+
+
+
+
 	return 0;
-}
+} // dir_remove()
 
 /**************************************************************************************************
 * BONUS POINTS 
+* Change direcotries
 **************************************************************************************************/
 int dir_change(char *name) {
 	// check if the name is already in the directory
 	int inodeNum = search_cur_dir(name);
 	if (inodeNum < 0) {
-		printf("cd failed:  %s does not exist.\n", name);
+		printf("cd failed: \'/%s\' does not exist.\n", name);
 		return -1;
 	} // if 
 
 	// check if the type is a file 
 	if (inode[inodeNum].type == file) {
-		printf("cd error: cannot change into a file\n");
+		printf("cd error: \'%s\' is a file\n", name);
 		return -1;
 	} // if
 
 	// write current Directory changes to block before switching 
 	disk_write(curDirBlock, (char *)&curDir);
 
-
-	// root directory
+	// get the block number of the directory to switch to 
 	curDirBlock = inode[inodeNum].directBlock[0];
+	// load the dest dir's entry table into memory
 	disk_read(curDirBlock, (char *)&curDir);
 
-	printf("current Directory entries: %d\n", curDir.numEntry);  // TEST
-	printf("current Directory name: %s\n", name);  // TEST
-	// printf("current Directory: %s\n", name); 
+	// Print a message to the user that the change was a success 	
+	printf("Current directory: \'/%s\'\n", name); 
 
 	return 0;
-}
+} // dir_change()
 
 int ls()
 {
@@ -597,32 +638,14 @@ int ls()
 		printf("name \"%s\", inode %d, size %d byte\n", curDir.dentry[i].name, curDir.dentry[i].inode, inode[n].size);
 	}
 
-	// char *tmp = (char *)malloc(10);
-	// tmp[10] = '\0';
-
-	// for (int i = 0; i < MAX_INODE / 8; i++) {
-	// 	tmp[i] = get_bit(inode, i);
-	// }
-
-	// printf("inode bitmap = %d\n", tmp);
-	// char *tmp2 = (char *)malloc(10);
-	// tmp2[10] = '\0';
-
-	// for (int i = 0; i < MAX_INODE / 8; i++) {
-	// 	tmp2[i] = get_bit(blockMap, i);
-	// }
-
-	// printf("block bitmap = %d\n", tmp2);
-
-
 	return 0;
-}
+} // ls()
 
 int fs_stat()
 {
 	printf("File System Status: \n");
 	printf("# of free blocks: %d (%d bytes), # of free inodes: %d\n", superBlock.freeBlockCount, superBlock.freeBlockCount * 512, superBlock.freeInodeCount);
-}
+} // fs_stat()
 
 /**************************************************************************************************
 * NEED TO IMPLEMENT!!
@@ -702,10 +725,9 @@ int hard_link(char *src, char *dest) {
 	printf("link created: %s --> %d\n", dest, src);
 
 	return 0;
-}
+} // hard_link()
 
-int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, int numArg)
-{
+int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, int numArg) {
 
 	printf("\n");
 	if (command(comm, "df"))
@@ -802,4 +824,4 @@ int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, 
 		return -1;
 	}
 	return 0;
-}
+} // execute_command()
