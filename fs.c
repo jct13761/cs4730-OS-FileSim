@@ -309,8 +309,8 @@ int file_read(char *name, int offset, int size) {
 	} // if 
 
 	// if the size is invalid 
-	if (inode[inodeNum].size < size) {
-		printf("File read failed: %s size of read request is too large .\n", name);
+	if (inode[inodeNum].size < size || inode[inodeNum].size - offset < size) {
+		printf("File read failed: \'%s\' size of read request is too large.\n", name);
 		return -1;
 	} // if
 
@@ -564,8 +564,6 @@ int dir_remove(char *name) {
 	// load the dest dir's entry table into memory
 	disk_read(dirBlocktoBeDeleted, (char *)&dirToBeDeleted);
 
-	printf("dir To be deleted count = %d\n", dirToBeDeleted.numEntry); // TEST
-
 	// if trying to delete the current directory 
 	if (dirToBeDeleted.dentry[0].inode == curDir.dentry[0].inode) {
 		printf("Directory removal failed: \'/%s\' is the current Directory.\n", name);
@@ -583,8 +581,6 @@ int dir_remove(char *name) {
 		printf("Failed to remove \'/%s\': Directory not empty!\n", name);
 		return -1;
 	} // if
-
-	// printf("Directory is empty!\n"); // TEST
 
 	// remove from directory
 	remove_from_dir(name); 
@@ -634,24 +630,21 @@ int dir_change(char *name) {
 	return 0;
 } // dir_change()
 
-int ls()
-{
+int ls() {
 	int i;
-	for (i = 0; i < curDir.numEntry; i++)
-	{
+	for (i = 0; i < curDir.numEntry; i++) {
 		int n = curDir.dentry[i].inode;
 		if (inode[n].type == file)
 			printf("type: file, ");
 		else
 			printf("type: dir, ");
 		printf("name \"%s\", inode %d, size %d byte\n", curDir.dentry[i].name, curDir.dentry[i].inode, inode[n].size);
-	}
+	} // for
 
 	return 0;
 } // ls()
 
-int fs_stat()
-{
+int fs_stat() {
 	printf("File System Status: \n");
 	printf("# of free blocks: %d (%d bytes), # of free inodes: %d\n", superBlock.freeBlockCount, superBlock.freeBlockCount * 512, superBlock.freeInodeCount);
 } // fs_stat()

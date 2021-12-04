@@ -1,4 +1,4 @@
-all: fs run
+all: fs
 
 run:
 	./fs_sim disk.dat
