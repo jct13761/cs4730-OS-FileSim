@@ -72,7 +72,7 @@ void set_free_inode(int i) {
 
 void set_free_block(int i) {
 	set_bit(blockMap, i, 0);
-	superBlock.freeBlockCount--;
+	superBlock.freeBlockCount++;
 } // set_free_block()
 
 int format_timeval(struct timeval *tv, char *buf, size_t sz)

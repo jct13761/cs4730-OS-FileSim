@@ -417,7 +417,7 @@ int file_remove(char *name) {
 		// clear up data block bitmap
 		for (int i = 0; i < inode[inodeNum].blockCount; i++) {
 			set_free_block(inode[inodeNum].directBlock[i]); // need to loop this probably
-		}
+		} // for
 
 		printf("%s has been successfully removed\n", name); 
 
@@ -578,18 +578,27 @@ int dir_remove(char *name) {
 		return -1;
 	} // if
 
-	if (dirToBeDeleted.numEntry == 2) {
-		printf("Directory is empty!\n"); // TEST
-	} else if (dirToBeDeleted.numEntry > 2) {
-		printf("Failed to remove \'/%s\': Directory not empty!\n", name); // TEST
-	} else {
-		
-	} // if-else
+	// if the Directory is not empty 
+	if (dirToBeDeleted.numEntry > 2) {
+		printf("Failed to remove \'/%s\': Directory not empty!\n", name);
+		return -1;
+	} // if
+
+	// printf("Directory is empty!\n"); // TEST
+
+	// remove from directory
+	remove_from_dir(name); 
+
+	// clear up inode bitmap
+	set_free_inode(inodeNum); 
+
+	// clear up data block bitmap
+	for (int i = 0; i < inode[inodeNum].blockCount; i++) {
+		set_free_block(inode[inodeNum].directBlock[i]); // need to loop this probably
+	} // for
 
 
-
-
-
+	printf("%s has been successfully removed\n", name); 
 	return 0;
 } // dir_remove()
 
